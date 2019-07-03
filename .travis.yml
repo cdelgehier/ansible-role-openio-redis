@@ -46,8 +46,14 @@ script:
 
   # Create container and apply test playbook
   - ./docker-tests/docker-tests.sh
+  - docker exec -it $(docker ps -aq |sed '1q;d') gridinit_cmd status2
+  - docker exec -it $(docker ps -aq |sed '1q;d') /usr/bin/redis-server /etc/oio/sds/TRAVIS/redissentinel-0/redissentinel.conf --sentinel --daemonize no
   - ./docker-tests/docker-tests.sh
+  - docker exec -it $(docker ps -aq |sed '1q;d') gridinit_cmd status2
+  - docker exec -it $(docker ps -aq |sed '1q;d') /usr/bin/redis-server /etc/oio/sds/TRAVIS/redissentinel-0/redissentinel.conf --sentinel --daemonize no
   - ./docker-tests/docker-tests.sh
+  - docker exec -it $(docker ps -aq |sed '1q;d') gridinit_cmd status2
+  - docker exec -it $(docker ps -aq |sed '1q;d') /usr/bin/redis-server /etc/oio/sds/TRAVIS/redissentinel-0/redissentinel.conf --sentinel --daemonize no
 
   # Run functional tests on the container
   - SUT_ID=$(docker ps -aq |sed '1q;d') SUT_IP=172.17.0.2 ./docker-tests/functional-tests.sh

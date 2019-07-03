@@ -54,29 +54,60 @@
   register: _gridinit_conf
   tags: configure
 
-- name: Generate {{ openio_redis_type }} configuration
-  lineinfile:
-    create: true
-    dest: "{{ openio_redis_sysconfig_dir }}/\
-      {{ openio_redis_servicename }}/{{ openio_redis_type }}.conf"
-    line: "{{ line }}"
-    mode: 0644
-    owner: openio
-    group: openio
-  with_items: "{{ lookup('template', openio_redis_type ~ '.conf.j2').splitlines() }}"
-  loop_control:
-    loop_var: line
-  register: _redis_conf
-  tags: configure
+- block:
+    - name: Generate {{ openio_redis_type }} configuration
+      lineinfile:
+        create: true
+        dest: "{{ openio_redis_sysconfig_dir }}/\
+          {{ openio_redis_servicename }}/{{ openio_redis_type }}.conf"
+        line: "{{ line }}"
+        mode: 0644
+        owner: openio
+        group: openio
+      with_items: "{{ lookup('template', openio_redis_type ~ '.conf.j2').splitlines() }}"
+      loop_control:
+        loop_var: line
+      register: _redis_conf
+      tags: configure
+  when: not openio_redis_configuration_split
+
+- block:
+    - name: Generate main {{ openio_redis_type }} configuration
+      lineinfile:
+        create: true
+        dest: "{{ openio_redis_sysconfig_dir }}/\
+          {{ openio_redis_servicename }}/{{ openio_redis_type }}.conf"
+        line: "include {{ openio_redis_sysconfig_dir }}/\
+          {{ openio_redis_servicename }}/{{ openio_redis_type }}-{{ openio_redis_bind_port }}.conf"
+        mode: 0644
+        owner: openio
+        group: openio
+      register: _redis_conf_main_split
+      tags: configure
+
+    - name: Generate split {{ openio_redis_type }} configuration
+      template:
+        src: "{{ openio_redis_type }}.conf.j2"
+        dest: "{{ openio_redis_sysconfig_dir }}/\
+          {{ openio_redis_servicename }}/{{ openio_redis_type }}-{{ openio_redis_bind_port }}.conf"
+        owner: openio
+        group: openio
+        mode: 0644
+      register: _redis_conf_sub_split
+      tags: configure
+  when: openio_redis_configuration_split
 
 - name: "restart redis to apply the new configuration"
   shell: |
     gridinit_cmd reload
     gridinit_cmd restart  {{ openio_redis_namespace }}-{{ openio_redis_servicename }}
   register: _restart_redis
-  when:
-    - _redis_conf is changed or _gridinit_conf is changed
-    - not openio_redis_provision_only
+  when: >
+    (_redis_conf is changed
+    or _gridinit_conf is changed
+    or _redis_conf_main_split is changed
+    or _redis_conf_sub_split is changed)
+    and not openio_redis_provision_only
   tags: configure
 
 - block:
