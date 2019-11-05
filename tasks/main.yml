@@ -99,68 +99,49 @@
   register: _gridinit_conf
   tags: configure
 
-- block:
-    - name: Generate {{ openio_redis_type }} configur7ation
-      lineinfile:
-        create: true
-        dest: "{{ openio_redis_sysconfig_dir }}/\
-          {{ openio_redis_servicename }}/{{ openio_redis_type }}.conf"
-        line: "{{ line }}"
-        mode: 0644
-        owner: openio
-        group: openio
-      with_items: "{{ lookup('template', openio_redis_type ~ '.conf.j2').splitlines() }}"
-      loop_control:
-        loop_var: line
-      register: _redis_conf
-      tags: configure
-  when: not openio_redis_configuration_split
+- name: Generate main {{ openio_redis_type }} configuration
+  lineinfile:
+    create: true
+    dest: "{{ openio_redis_sysconfig_dir }}/\
+      {{ openio_redis_servicename }}/{{ openio_redis_type }}.conf"
+    line: "include {{ openio_redis_sysconfig_dir }}/\
+      {{ openio_redis_servicename }}/{{ openio_redis_type }}-{{ openio_redis_bind_port }}.conf"
+    mode: 0644
+    owner: openio
+    group: openio
+  register: _redis_conf_main_split
+  tags: configure
 
-- block:
-    - name: Generate main {{ openio_redis_type }} configuration
-      lineinfile:
-        create: true
-        dest: "{{ openio_redis_sysconfig_dir }}/\
-          {{ openio_redis_servicename }}/{{ openio_redis_type }}.conf"
-        line: "include {{ openio_redis_sysconfig_dir }}/\
-          {{ openio_redis_servicename }}/{{ openio_redis_type }}-{{ openio_redis_bind_port }}.conf"
-        mode: 0644
-        owner: openio
-        group: openio
-      register: _redis_conf_main_split
-      tags: configure
+- name: Add master information in main {{ openio_redis_type }} configuration
+  lineinfile:
+    create: true
+    dest: "{{ openio_redis_sysconfig_dir }}/\
+      {{ openio_redis_servicename }}/{{ openio_redis_type }}.conf"
+    line: "{{ item.line }}"
+    mode: 0644
+    owner: openio
+    group: openio
+    regexp: "{{ item.regexp }}"
+  register: _redis_conf_main_split_master
+  when: openio_redis_type == 'redissentinel'
+  with_items:
+    - line: "sentinel monitor {{ openio_redis_master_groupname }} \
+        {{ master_host }} {{ master_port }} {{ openio_redis_quorum }}"
+      regexp: "^sentinel monitor {{ openio_redis_master_groupname }}"
+    - line: "sentinel down-after-milliseconds {{ openio_redis_master_groupname }} {{ openio_redis_down_after }}"
+      regexp: "^sentinel down-after-milliseconds {{ openio_redis_master_groupname }}"
+  tags: configure
 
-    - name: Add master information in main {{ openio_redis_type }} configuration
-      lineinfile:
-        create: true
-        dest: "{{ openio_redis_sysconfig_dir }}/\
-          {{ openio_redis_servicename }}/{{ openio_redis_type }}.conf"
-        line: "{{ item.line }}"
-        mode: 0644
-        owner: openio
-        group: openio
-        regexp: "{{ item.regexp }}"
-      register: _redis_conf_main_split_master
-      when: openio_redis_type == 'redissentinel'
-      with_items:
-        - line: "sentinel monitor {{ openio_redis_master_groupname }} \
-            {{ master_host }} {{ master_port }} {{ openio_redis_quorum }}"
-          regexp: "^sentinel monitor {{ openio_redis_master_groupname }}"
-        - line: "sentinel down-after-milliseconds {{ openio_redis_master_groupname }} {{ openio_redis_down_after }}"
-          regexp: "^sentinel down-after-milliseconds {{ openio_redis_master_groupname }}"
-      tags: configure
-
-    - name: Generate split {{ openio_redis_type }} configuration
-      template:
-        src: "{{ openio_redis_type }}.conf.j2"
-        dest: "{{ openio_redis_sysconfig_dir }}/\
-          {{ openio_redis_servicename }}/{{ openio_redis_type }}-{{ openio_redis_bind_port }}.conf"
-        owner: openio
-        group: openio
-        mode: 0644
-      register: _redis_conf_sub_split
-      tags: configure
-  when: openio_redis_configuration_split
+- name: Generate split {{ openio_redis_type }} configuration
+  template:
+    src: "{{ openio_redis_type }}.conf.j2"
+    dest: "{{ openio_redis_sysconfig_dir }}/\
+      {{ openio_redis_servicename }}/{{ openio_redis_type }}-{{ openio_redis_bind_port }}.conf"
+    owner: openio
+    group: openio
+    mode: 0644
+  register: _redis_conf_sub_split
+  tags: configure
 
 - name: "restart redis to apply the new configuration"
   shell: |
