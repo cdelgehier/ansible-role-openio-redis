@@ -2,7 +2,7 @@
 # Distribution-specific variables for RHEL, CentOS, ...
 ---
 redis_packages:
-  - python-redis
+  - python3-redis
   - tuned
   - redis
 syslog_user: openio

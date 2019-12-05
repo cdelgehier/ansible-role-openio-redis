@@ -2,7 +2,7 @@
 # Distribution-specific variables for Ubuntu, Debian, ...
 ---
 redis_packages:
-  - python-redis
+  - python3-redis
   - redis-server
   - redis-tools
 syslog_user: syslog

@@ -20,6 +20,12 @@
   vars:
     NS: TRAVIS
     openio_bootstrap: true
+
+  pre_tasks:
+    - name: set python interpreter
+      set_fact:
+        ansible_python_interpreter: /usr/bin/python3
+
   roles:
     - role: users
     - role: repository
